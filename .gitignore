@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 
-data/
+b3_fundamentals/**/data/
