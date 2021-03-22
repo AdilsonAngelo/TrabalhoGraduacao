@@ -12,6 +12,7 @@ import numpy as np
 import locale
 from data.stocks import data_frame
 from recommendations import get_top5
+from stock import top_variations
 
 locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
 
@@ -58,15 +59,11 @@ def display_page(pathname):
     return render_stock_info(ticker.upper())
 
 
-def card(title, text, color='secondary'):
-    return dbc.Card(color=color, children=dbc.CardBody([
+def card(title, text, color='secondary', outline=False):
+    return dbc.Card(color=color, outline=outline, children=dbc.CardBody([
         html.H5(className='card-dash.dependenciestitle', children=title),
         html.Div(className='card-text', children=text)
     ]))
-
-
-def render_welcome():
-    return dbc.Row([dbc.Spinner(html.Div(id="loading-recomm"))])
 
 
 def render_stock_info(ticker: str):
@@ -89,15 +86,6 @@ def render_stock_info(ticker: str):
     ])
 
     return content
-
-
-@app.callback(Output("loading-recomm", "children"),
-              [Input('url', 'pathname')])
-def load_recommendations(pathname):
-    return dbc.Row([
-        dbc.Col(card(['Recomendações do mês', html.Hr(), html.Small('indicações de corretoras e analistas')],
-                     dbc.Table.from_dataframe(get_top5(), striped=True, bordered=True, hover=True)))
-    ])
 
 
 @ app.callback(Output("loading-output", "children"),
@@ -165,6 +153,31 @@ def gen_rows(ticker: str, data: dict):
             row = []
 
     return rows
+
+
+def render_welcome():
+    return [dbc.Spinner(html.Div(id="loading-recomm")),
+            html.Hr(),
+            dbc.Spinner(html.Div(id="loading-variat"))]
+
+
+@app.callback(Output("loading-recomm", "children"),
+              [Input('url', 'pathname')])
+def load_recommendations(pathname):
+    return dbc.Row(dbc.Col(card(['Recomendações do mês', html.Hr(), html.Small('indicações de corretoras e analistas')],
+                                dbc.Table.from_dataframe(get_top5(), striped=True, bordered=True, hover=True))))
+
+
+@app.callback(Output("loading-variat", "children"),
+              [Input('url', 'pathname')])
+def load_variations(pathname):
+    variations = top_variations()
+    return dbc.Row([
+        dbc.Col(card('Maiores altas 24h',
+                     dbc.Table.from_dataframe(variations['altas'], striped=True, bordered=True, hover=True), color='success', outline=True)),
+        dbc.Col(card('Maiores baixas 24h',
+                     dbc.Table.from_dataframe(variations['baixas'], striped=True, bordered=True, hover=True), color='danger', outline=True))
+    ])
 
 
 if __name__ == '__main__':

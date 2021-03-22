@@ -28,7 +28,7 @@ def run(playwright):
     for i in range(10):
         time.sleep(1)
         page.keyboard.press('PageDown')
-        soup = BeautifulSoup(page.innerHTML('body'))
+        soup = BeautifulSoup(page.innerHTML('body'), features="lxml")
         urls = get_relevant_urls(soup)
         if len(urls) > 0:
             break
@@ -40,7 +40,7 @@ def run(playwright):
     context.close()
     browser.close()
 
-    soup = BeautifulSoup(requests.get(urls[0]).text)
+    soup = BeautifulSoup(requests.get(urls[0]).text, features="lxml")
 
     return get_tables_from_html(soup)
 
@@ -84,4 +84,4 @@ def has_current_month(s: str):
     return current_month in s.lower()
 
 
-print(get_top5())
+# print(get_top5())
