@@ -1,3 +1,5 @@
+import string
+import random
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -96,7 +98,24 @@ def load_rows(pathname):
     return gen_rows(ticker, data)
 
 
-def simple_boxplot(ticker: str, series: pd.DataFrame):
+def progress_graph(ticker: str, series: pd.Series):
+
+    # offset = series.
+    
+    _id = ''.join(random.choices(string.ascii_lowercase, k=5))
+
+    return [
+        dbc.Progress(id=_id, value=100, striped=True, bar_style={
+                     'background': 'linear-gradient(90deg, rgba(255,0,0,1) 0%, rgba(0,151,255,1) 100%)'
+                     }),
+        dbc.Tooltip(ticker,
+                    id=f'{_id}-tt',
+                    target=_id,
+                    offset='top+25%')
+    ]
+
+
+def simple_boxplot(ticker: str, series: pd.Series):
     fig = go.Figure()
 
     fig.add_trace(go.Box(x=series,
@@ -112,6 +131,13 @@ def simple_boxplot(ticker: str, series: pd.DataFrame):
                              opacity=1, color='red', size=15)),
                          marker=dict(opacity=1),
                          line=dict(color='#072859')))
+    fig.add_annotation(x=np.log10(series.loc[ticker]),
+                       text=ticker,
+                       showarrow=True,
+                       arrowhead=1,
+                       arrowcolor="red",
+                       arrowsize=2,
+                       arrowwidth=1)
 
     fig.update_layout(height=100,
                       margin=dict(l=20, r=20, t=20, b=20))
@@ -139,14 +165,20 @@ def gen_rows(ticker: str, data: dict):
     rows = []
     row = []
     for col, val in data.items():
-        row.append(dbc.Col(card([f'{col}: ',  f'{data[col]["bruto"]}'],
-                                [
-                                    html.H6('No setor'),
-                                    simple_boxplot(ticker, data[col]['setor']),
-                                    html.Hr(),
-                                    html.H6('Geral'),
-                                    simple_boxplot(ticker, data[col]['geral']),
-        ])))
+        row.append(
+            dbc.Col(
+                card(
+                    [f'{col}: ',  f'{data[col]["bruto"]}'],
+                    [
+                        html.H6('No setor'),
+                        *progress_graph(ticker, data[col]['setor']),
+                        html.Hr(),
+                        html.H6('Geral'),
+                        *progress_graph(ticker, data[col]['geral']),
+                    ]
+                )
+            )
+        )
         if len(row) == 2:
             rows.append(dbc.Row(row))
             rows.append(html.Hr())

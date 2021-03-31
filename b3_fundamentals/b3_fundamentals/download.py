@@ -55,6 +55,7 @@ def get_sector(ticker):
             'div').find('strong').text.upper()
     except AttributeError:
         print(f'ticker: {ticker} with sector None')
+        setor = None
     return (ticker, setor)
 
 
@@ -78,7 +79,7 @@ def yahoo_info_to_csv(ticker):
     get_url = 'https://query1.finance.yahoo.com/v7/finance/download/{}.SA'.format
 
     end = dt.datetime.now(tz=dt.timezone.utc)
-    start = end - dt.timedelta(days=365)
+    start = end - dt.timedelta(days=180)
 
     url = get_url(ticker)
     params = {
@@ -116,5 +117,5 @@ if __name__ == '__main__':
         if not os.path.isdir(d):
             os.makedirs(d)
 
-    # download_statusinvest()
+    download_statusinvest()
     download_yahoofinance()
