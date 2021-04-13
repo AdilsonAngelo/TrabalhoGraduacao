@@ -12,7 +12,7 @@ import stock
 import utils
 import numpy as np
 import locale
-from data.stocks import data_frame, names, greenblatt
+from data.stocks import data_frame, names, greenblatt, indicators
 from recommendations import get_top5
 from stock import top_variations
 
@@ -43,7 +43,9 @@ view_modifiers = {
     'CAGR RECEITAS 5 ANOS': to_percent_view
 }
 
-app = dash.Dash(external_stylesheets=[dbc.themes.LUX],
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX,
+                                                {'href': 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css',
+                                                 'rel': 'stylesheet'}],
                 suppress_callback_exceptions=True)
 
 app.layout = dbc.Container([
@@ -233,10 +235,25 @@ def gen_rows(ticker: str, data: dict):
     for col, val in data.items():
         modifier = view_modifiers.get(col, lambda x: x)
         bruto = modifier(data[col]["bruto"])
+
+        col_id = f'{col}'.lower().replace(' ', '-')
         row.append(
             dbc.Col(
                 card(
-                    [f'{col}: ',  f'{bruto}'],
+                    dbc.Row(
+                        [
+                            dbc.Col(f'{col}: {bruto}', width={'size': 11}),
+                            dbc.Col(
+                                [
+                                    html.I(className='far fa-question-circle',
+                                           id=col_id),
+                                    dbc.Tooltip(indicators[col], target=col_id)
+                                ],
+                                width={'size': 1}
+                            )
+                        ],
+                        justify='between'
+                    ),
                     [
                         html.H6('No setor'),
                         *progress_graph(ticker, data[col]['setor']),
