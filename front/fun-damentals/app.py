@@ -12,7 +12,7 @@ import stock
 import utils
 import numpy as np
 import locale
-from data.stocks import data_frame, names, greenblatt, indicators
+from data.stocks import *
 from recommendations import get_top5
 from stock import top_variations
 
@@ -89,10 +89,16 @@ def display_page(pathname):
 
 
 def card(title, text, color='secondary', outline=False):
-    return dbc.Card(color=color, outline=outline, children=dbc.CardBody([
-        html.H5(className='card-dash.dependenciestitle', children=title),
-        html.Div(className='card-text', children=text)
-    ]))
+    return dbc.Card(
+        dbc.CardBody([
+            html.H5(className='card-dash.dependenciestitle', children=title),
+            html.Div(className='card-text', children=text,
+                     style={'position': 'relative'})
+        ], style={'padding': '40px'}),
+        color=color,
+        outline=outline,
+        style={'align-self': 'stretch'}
+    )
 
 
 def render_stock_info(ticker: str):
@@ -107,31 +113,53 @@ def render_stock_info(ticker: str):
         ]),
         html.Hr(),
         dbc.Row([
-            dbc.Col(card(['Último fechamento', html.Hr()],
-                         html.H2(
-                             locale.currency(stock.get_last_close(
-                                 ticker), grouping=True)
-            ),
-                'success'),
-            ),
-            dbc.Col(card(['Preço Justo',
-                          html.Hr(),
-                          html.A(html.Small('Fórmula de Benjamin Graham'),
-                                 href='https://b7invest.com.br/2020/12/preco-justo-das-acoes-calculadora/')],
-                         html.H2(locale.currency(
-                             get_graham(data_frame.loc[ticker]), grouping=True))
-                         )
-                    ),
             dbc.Col(
-                card(['Posição percentual',
-                      html.Hr(),
-                      html.A(html.Small('Fórmula de Joel Greenblatt'),
-                             href='https://www.btgpactualdigital.com/blog/coluna-andre-bona/a-formula-magica-de-greenblatt-para-escolha-de-acoes')],
-                     html.H2(f'{100*greenblatt.loc[ticker]:.0f}%',
-                             style={
-                                 'color': f'rgb({255*(1-greenblatt.loc[ticker])},100,{255*greenblatt.loc[ticker]})'
-                             })
-                     )
+                card(['Último fechamento', html.Hr()],
+                     html.H2(locale.currency(
+                         stock.get_last_close(ticker),
+                         grouping=True
+                     )),
+                     'success'),
+                style={'display': 'grid'}
+            ),
+            dbc.Col(
+                card(
+                    [
+                        'Preço Justo',
+                        html.Hr()
+                    ],
+                    [
+                        html.H2(locale.currency(
+                            get_graham(data_frame.loc[ticker]), grouping=True)),
+                        html.A(html.Small('Fórmula de Benjamin Graham'),
+                               href='https://b7invest.com.br/2020/12/preco-justo-das-acoes-calculadora/')
+                    ]
+                ),
+                style={'display': 'grid'}
+            ),
+            dbc.Col(
+                card(
+                    [
+                        'Classificação Geral de Greenblatt',
+                        html.Hr()
+                    ],
+                    [
+                        html.H4(
+                            [
+                                'Melhor que ',
+                                html.Span(f'{100*greenblatt.loc[ticker]:.0f}%',
+                                          style={
+                                              'background-color': f'rgb({255*(1-greenblatt.loc[ticker])}, 100, {255*greenblatt.loc[ticker]})',
+                                              'color': 'white'
+                                          }),
+                                ' das ações'
+                            ]
+                        ),
+                        html.A(html.Small('Fórmula de Joel Greenblatt'),
+                               href='https://www.btgpactualdigital.com/blog/coluna-andre-bona/a-formula-magica-de-greenblatt-para-escolha-de-acoes')
+                    ]
+                ),
+                style={'display': 'grid'}
             )
         ]),
         html.Hr(),
@@ -148,8 +176,8 @@ def render_stock_info(ticker: str):
     return content
 
 
-@ app.callback(Output("loading-output", "children"),
-               [Input('url', 'pathname')])
+@app.callback(Output("loading-output", "children"),
+              [Input('url', 'pathname')])
 def load_rows(pathname):
     ticker = pathname.replace('/', '').upper()
     data = crunch_data(ticker, data_frame[INITIAL_FEATURES + ['SETOR']])
@@ -157,9 +185,9 @@ def load_rows(pathname):
     return gen_rows(ticker, data)
 
 
-@ app.callback(Output("second-output", "children"),
-               [Input("load-more-button", "n_clicks"),
-                Input('url', 'pathname')])
+@app.callback(Output("second-output", "children"),
+              [Input("load-more-button", "n_clicks"),
+               Input('url', 'pathname')])
 def load_more_rows(n_clicks, pathname):
     if n_clicks == 1:
         ticker = pathname.replace('/', '').upper()
@@ -172,14 +200,68 @@ def load_more_rows(n_clicks, pathname):
 def progress_graph(ticker: str, series: pd.Series):
     _id = ''.join(random.choices(string.ascii_lowercase, k=5))
 
+    gradient_colors = {
+        'start': [255, 100, 0],
+        'end': [0, 100, 255]
+    }
+
+    weight = ((series.loc[ticker] - series.min()) /
+              (series.max() - series.min()))
+
+    if nature[series.name] == -1:
+        weight = 1 - weight
+
+    def scale_gradient(weight):
+        w = 0 if np.isnan(weight) else weight
+        color1 = gradient_colors['end']
+        color2 = gradient_colors['start']
+        return [round(color1[0] * w + color2[0] * (1-w)),
+                round(color1[1] * w + color2[1] * (1-w)),
+                round(color1[2] * w + color2[2] * (1-w))]
     return [
-        dbc.Progress(id=_id, value=100, striped=True, bar_style={
-                     'background': 'linear-gradient(90deg, rgba(255,100,0,1) 0%, rgba(0,100,255,1) 100%)'
-                     }),
-        dbc.Tooltip(ticker,
-                    id=f'{_id}-tt',
-                    target=_id,
-                    offset='top+25%')
+        dbc.Progress(
+            id=_id,
+            value=100,
+            striped=True,
+            bar_style={
+                'background': 'linear-gradient(90deg, rgba({0},{1},{2},1) 0%, rgba({3},{4},{5},1) 100%)'.format(
+                    *gradient_colors['start'], *gradient_colors['end']
+                )
+            }
+        ),
+        dbc.Tooltip(
+            f"{ticker} está melhor que {100*weight:.1f}% das ações",
+            target=_id
+        ),
+        html.Div(
+            [
+                html.Div("", style={
+                    'content': '',
+                    'position': 'absolute',
+                    'margin-left': '-5px',
+                    'left': '50%',
+                    'top': '-5px',
+                    'border-bottom': '5px solid',
+                    'border-left': '5px solid transparent',
+                    'border-right': '5px solid transparent',
+                    'border-bottom-color': 'inherit'
+                }),
+                f'{100*weight:.1f}%'
+            ],
+            style={
+                'margin-left': f'{100*weight}%',
+                'margin-top': '5px',
+                'font-size': '.7rem',
+                'transform': 'translateX(-50%)',
+                'z-index': '1',
+                'border-radius': '.2rem',
+                'padding': '.1rem .4rem .2rem .4rem',
+                'position': 'absolute',
+                'border-color': 'rgb({}, {}, {})'.format(*scale_gradient(weight)),
+                'background-color': 'rgb({}, {}, {})'.format(*scale_gradient(weight)),
+                'color': '#FFF'
+            }
+        )
     ]
 
 
@@ -223,8 +305,8 @@ def crunch_data(ticker: str, df: pd.DataFrame) -> dict:
             continue
         res[col] = {
             'bruto': df.loc[ticker][col],
-            'geral': df[col].apply(np.log10),
-            'setor': setor[col].apply(np.log10)
+            'geral': df[col],  # .apply(np.log10),
+            'setor': setor[col]  # .apply(np.log10)
         }
     return res
 
@@ -236,7 +318,7 @@ def gen_rows(ticker: str, data: dict):
         modifier = view_modifiers.get(col, lambda x: x)
         bruto = modifier(data[col]["bruto"])
 
-        col_id = f'{col}'.lower().replace(' ', '-')
+        col_id = f'{col}'.lower().replace(' ', '-').replace('/', '')
         row.append(
             dbc.Col(
                 card(
@@ -247,7 +329,8 @@ def gen_rows(ticker: str, data: dict):
                                 [
                                     html.I(className='far fa-question-circle',
                                            id=col_id),
-                                    dbc.Tooltip(indicators[col], target=col_id)
+                                    dbc.Tooltip(
+                                        indicators[col], target=col_id, autohide=False)
                                 ],
                                 width={'size': 1}
                             )
@@ -261,7 +344,8 @@ def gen_rows(ticker: str, data: dict):
                         html.H6('Geral'),
                         *progress_graph(ticker, data[col]['geral']),
                     ]
-                )
+                ),
+                style={'display': 'grid'}
             )
         )
         if len(row) == 2:
